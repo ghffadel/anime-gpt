@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import axios from 'axios'
+import { useEffect, useState } from 'react'
 import {
   AnimeGPTMessage,
   ChatContainer,
@@ -14,14 +15,46 @@ interface MessageType {
   text: string
 }
 
+const baseURL = 'http://localhost:5555'
+
 export const Chat = () => {
+  const [hasSentMessage, setHasSentMessage] = useState(false)
   const [messages, setMessages] = useState<MessageType[]>([])
   const [newMessage, setNewMessage] = useState('')
 
+  useEffect(() => {
+    if (hasSentMessage) {
+      const checkForModelAnswer = async () => {
+        try {
+          const { data } = await axios.post(`${baseURL}/ask-question`, {
+            question: newMessage,
+          })
+
+          const updatedMessages = [...messages]
+
+          updatedMessages[updatedMessages.length - 1].text =
+            data.answer.answer[2]
+
+          setMessages(updatedMessages)
+        } catch (error) {
+          console.error(error)
+        }
+      }
+
+      checkForModelAnswer()
+      setHasSentMessage(false)
+      setNewMessage('')
+    }
+  }, [hasSentMessage, messages, newMessage])
+
   const handleSendMessage = () => {
     if (newMessage.trim() !== '') {
-      setMessages([...messages, { type: 'user', text: newMessage }])
-      setNewMessage('')
+      setMessages((oldMessages) => [
+        ...oldMessages,
+        { type: 'user', text: newMessage },
+        { type: 'model', text: 'Esperando resposta do modelo...' },
+      ])
+      setHasSentMessage(true)
     }
   }
 
@@ -45,12 +78,12 @@ export const Chat = () => {
       <InputContainer>
         <Input
           type="text"
-          placeholder="Type your message..."
+          placeholder="Faça uma pergunta..."
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={handleKeyPress}
         />
-        <SendButton onClick={handleSendMessage}>Send</SendButton>
+        <SendButton onClick={handleSendMessage}>Enviar</SendButton>
       </InputContainer>
     </ChatContainer>
   )
